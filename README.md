@@ -2,6 +2,10 @@
 
 Low-RAM, cross-platform (Windows & Linux) screen recorder that lives in your system tray.
 
+## Download
+
+Prebuilt binaries for Windows and Linux are published on the [Releases](https://github.com/Foelance/LiteCap/releases) page for every tagged version (`vX.Y.Z`). `litecap.exe` is Windows-only — it will not run on Linux (not even under Wine, since screen capture uses the Windows Graphics Capture API). Linux users should download `litecap-linux-x86_64` from Releases, or build from source (see below).
+
 ## Features
 
 - **System tray app** — no window, no clutter. Start/stop recording from the tray menu or a global hotkey.
@@ -40,7 +44,7 @@ LiteCap stores its config as TOML under the platform's standard config directory
 
 ## CI
 
-GitHub Actions runs `cargo check --release` on both Windows and Linux for every push/PR (see `.github/workflows/ci.yml`).
+GitHub Actions runs `cargo check --release` on both Windows and Linux for every push/PR (see `.github/workflows/ci.yml`), and builds + publishes release binaries for both platforms whenever a `v*` tag is pushed (see `.github/workflows/release.yml`).
 
 ## License
 
