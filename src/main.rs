@@ -96,14 +96,15 @@ fn build_menu(cfg: &Config) -> (Menu, MenuItems) {
         menu.append(&monitor_submenu).ok();
     }
 
-    let system_audio = CheckMenuItem::new("System audio", true, cfg.system_audio, None);
+    let options_submenu = Submenu::new("Options", true);
+    let system_audio = CheckMenuItem::new("System Sounds", true, cfg.system_audio, None);
     let microphone = CheckMenuItem::new("Microphone", true, cfg.microphone, None);
-    menu.append(&system_audio).ok();
-    menu.append(&microphone).ok();
-    menu.append(&PredefinedMenuItem::separator()).ok();
-
     let preset_1080p60 = CheckMenuItem::new("1920x1080 @ 60 FPS", true, cfg.preset_1080p60, None);
-    menu.append(&preset_1080p60).ok();
+    options_submenu.append(&microphone).ok();
+    options_submenu.append(&system_audio).ok();
+    options_submenu.append(&PredefinedMenuItem::separator()).ok();
+    options_submenu.append(&preset_1080p60).ok();
+    menu.append(&options_submenu).ok();
     menu.append(&PredefinedMenuItem::separator()).ok();
 
     let open_folder = MenuItem::new("Open recordings folder", true, None);

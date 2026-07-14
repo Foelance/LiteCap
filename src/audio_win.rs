@@ -1,9 +1,11 @@
 use std::io::Write;
 use std::net::TcpStream;
+use std::sync::Arc;
 
 use anyhow::{Context, Result};
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use cpal::{Device, SampleFormat, StreamConfig};
+use parking_lot::Mutex;
 
 /// Actual negotiated sample rate/channels for a probed device, so the
 /// caller can tell ffmpeg's `-ar`/`-ac` the truth before ever spawning it
@@ -15,8 +17,7 @@ pub struct StreamInfo {
 }
 
 /// A device plus its negotiated config, probed before ffmpeg is spawned so
-/// the command line can carry the real `-ar`/`-ac`. `open` is deferred until
-/// after ffmpeg has connected back to our TCP listener.
+/// the command line can carry the real `-ar`/`-ac`.
 pub struct ProbedSource {
     device: Device,
     config: StreamConfig,
@@ -29,17 +30,22 @@ pub struct AudioStreams {
     pub mic: Option<cpal::Stream>,
 }
 
-fn f32_stream(
-    device: &Device,
-    config: &StreamConfig,
-    mut sink: TcpStream,
-    label: &'static str,
-) -> Result<cpal::Stream> {
-    sink.set_nonblocking(true)?;
+/// A socket slot the audio callback writes into once available. The cpal
+/// stream starts capturing (and keeps the WASAPI engine warmed up)
+/// immediately, before ffmpeg has even connected; bytes captured before the
+/// socket is attached are simply dropped rather than delaying capture
+/// startup until after the TCP handshake completes.
+pub type SinkSlot = Arc<Mutex<Option<TcpStream>>>;
+
+fn f32_stream(device: &Device, config: &StreamConfig, sink_slot: SinkSlot, label: &'static str) -> Result<cpal::Stream> {
     let err_label = label;
     let stream = device.build_input_stream(
         config.clone(),
         move |data: &[f32], _info: &cpal::InputCallbackInfo| {
+            let mut guard = sink_slot.lock();
+            let Some(sink) = guard.as_mut() else {
+                return; // socket not attached yet; drop this packet
+            };
             let bytes = unsafe {
                 std::slice::from_raw_parts(data.as_ptr().cast::<u8>(), std::mem::size_of_val(data))
             };
@@ -108,10 +114,23 @@ pub fn probe_microphone() -> Result<ProbedSource> {
 }
 
 impl ProbedSource {
-    /// Opens the stream against an already-connected ffmpeg socket, using
-    /// the exact config that was probed (and therefore already told to
-    /// ffmpeg via `-ar`/`-ac`).
-    pub fn open(&self, sink: TcpStream, label: &'static str) -> Result<cpal::Stream> {
-        f32_stream(&self.device, &self.config, sink, label)
+    /// Starts capturing immediately (before ffmpeg has even connected),
+    /// writing into a shared slot. Returns the running stream plus the slot;
+    /// call `attach` on the slot once the TCP socket is accepted. Starting
+    /// capture immediately avoids a startup race where the WASAPI/loopback
+    /// engine is opened fresh mid-playback after an unpredictable delay
+    /// (accepting the socket can take up to several seconds), which was
+    /// observed to sometimes yield an audio-less recording.
+    pub fn start(&self, label: &'static str) -> Result<(cpal::Stream, SinkSlot)> {
+        let slot: SinkSlot = Arc::new(Mutex::new(None));
+        let stream = f32_stream(&self.device, &self.config, slot.clone(), label)?;
+        Ok((stream, slot))
     }
+}
+
+/// Attaches the accepted TCP socket to a running capture stream's sink slot.
+pub fn attach(slot: &SinkSlot, sink: TcpStream) -> Result<()> {
+    sink.set_nonblocking(true)?;
+    *slot.lock() = Some(sink);
+    Ok(())
 }

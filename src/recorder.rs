@@ -87,9 +87,12 @@ pub fn start(cfg: &Config, ffmpeg: &Path, enc: VideoEncoder) -> Result<Recording
     );
     let (width, height) = wait_first_frame(&slot, Duration::from_secs(3))?;
 
-    // 2. Probe audio sources (get real device rate/channels) and bind
-    //    listeners, before spawning ffmpeg, so the command line can carry
-    //    the true `-ar`/`-ac` (ffmpeg resamples; we never do in-process).
+    // 2. Probe audio sources (get real device rate/channels), then start
+    //    capturing IMMEDIATELY (before ffmpeg is even spawned). Starting
+    //    capture up front avoids a startup race where WASAPI/loopback is
+    //    opened fresh only after the TCP handshake completes (which can
+    //    take a few seconds), observed to sometimes yield silent audio.
+    //    Captured bytes are simply dropped until the socket is attached.
     let sys_probe = if cfg.system_audio {
         match audio_win::probe_system_audio() {
             Ok(p) => Some(p),
@@ -114,11 +117,36 @@ pub fn start(cfg: &Config, ffmpeg: &Path, enc: VideoEncoder) -> Result<Recording
     } else {
         None
     };
-    let sys_listener = sys_probe
+
+    let mut audio = AudioStreams { sys: None, mic: None };
+    let sys_started = sys_probe.as_ref().and_then(|p| match p.start("system") {
+        Ok((stream, slot)) => {
+            audio.sys = Some(stream);
+            Some((p.info, slot))
+        }
+        Err(e) => {
+            log::warn!("system audio unavailable: {e}");
+            notify("System audio unavailable, recording without it");
+            None
+        }
+    });
+    let mic_started = mic_probe.as_ref().and_then(|p| match p.start("mic") {
+        Ok((stream, slot)) => {
+            audio.mic = Some(stream);
+            Some((p.info, slot))
+        }
+        Err(e) => {
+            log::warn!("microphone unavailable: {e}");
+            notify("Microphone unavailable, recording without it");
+            None
+        }
+    });
+
+    let sys_listener = sys_started
         .as_ref()
         .map(|_| audio_net::listener().context("binding system-audio socket"))
         .transpose()?;
-    let mic_listener = mic_probe
+    let mic_listener = mic_started
         .as_ref()
         .map(|_| audio_net::listener().context("binding microphone socket"))
         .transpose()?;
@@ -129,8 +157,8 @@ pub fn start(cfg: &Config, ffmpeg: &Path, enc: VideoEncoder) -> Result<Recording
         enc,
         width,
         height,
-        sys_listener.as_ref().map(|(_, p)| (*p, sys_probe.as_ref().unwrap().info)),
-        mic_listener.as_ref().map(|(_, p)| (*p, mic_probe.as_ref().unwrap().info)),
+        sys_listener.as_ref().map(|(_, p)| (*p, sys_started.as_ref().unwrap().0)),
+        mic_listener.as_ref().map(|(_, p)| (*p, mic_started.as_ref().unwrap().0)),
         &out_path,
     );
     let mut job = FfmpegJob::spawn(ffmpeg, &args, true).context("spawning ffmpeg")?;
@@ -153,28 +181,32 @@ pub fn start(cfg: &Config, ffmpeg: &Path, enc: VideoEncoder) -> Result<Recording
             .context("spawning pacer thread")?
     };
 
-    // 5. Accept audio sockets and start cpal streams. A single source
-    //    failing to open must not abort the recording.
-    let mut audio = AudioStreams { sys: None, mic: None };
-    if let (Some((listener, _)), Some(probe)) = (sys_listener, &sys_probe) {
+    // 5. Accept audio sockets and attach them to the already-running
+    //    capture streams. A single source failing to connect must not
+    //    abort the recording.
+    if let Some((listener, _)) = sys_listener {
+        let (_, slot) = sys_started.as_ref().unwrap();
         match audio_net::accept_with_timeout(&listener, Duration::from_secs(5))
-            .and_then(|s| probe.open(s, "system"))
+            .and_then(|s| audio_win::attach(slot, s))
         {
-            Ok(stream) => audio.sys = Some(stream),
+            Ok(()) => {}
             Err(e) => {
                 log::warn!("system audio unavailable: {e}");
                 notify("System audio unavailable, recording without it");
+                audio.sys = None;
             }
         }
     }
-    if let (Some((listener, _)), Some(probe)) = (mic_listener, &mic_probe) {
+    if let Some((listener, _)) = mic_listener {
+        let (_, slot) = mic_started.as_ref().unwrap();
         match audio_net::accept_with_timeout(&listener, Duration::from_secs(5))
-            .and_then(|s| probe.open(s, "mic"))
+            .and_then(|s| audio_win::attach(slot, s))
         {
-            Ok(stream) => audio.mic = Some(stream),
+            Ok(()) => {}
             Err(e) => {
                 log::warn!("microphone unavailable: {e}");
                 notify("Microphone unavailable, recording without it");
+                audio.mic = None;
             }
         }
     }
