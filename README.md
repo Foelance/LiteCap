@@ -3,11 +3,11 @@
 Low-RAM, cross-platform (Windows & Linux) screen recorder that lives in your system tray.
 
 > ## ⚠️ IMPORTANT NOTE!
-> This entire project — code, CI/release pipeline, and yes, this README included 😃 — was built entirely with AI assistance. It works, but it hasn't had the kind of scrutiny a hand-crafted project would get, so bugs, rough edges, or plain wrong assumptions are expected. If something breaks or looks off, please open an issue or a PR — all suggestions and contributions are very welcome.
+> I built this entire project with AI assistance — the code, the CI/release pipeline, and yes, this README too 😃. It works (I've tested it myself on Windows), but I'm just one person and it hasn't had a proper community review yet, so bugs, rough edges, or wrong assumptions are entirely possible. If something breaks or looks off for you, please open an issue or a PR — I'm open to any and all suggestions.
 
 ## Download
 
-Prebuilt binaries for Windows and Linux are published on the [Releases](https://github.com/Foelance/LiteCap/releases) page for every tagged version (`vX.Y.Z`), built and signed off by CI from `.github/workflows/release.yml`. `litecap.exe` is Windows-only — it will **not** run on Linux, not even under Wine, since screen capture uses the Windows Graphics Capture API. Linux users should download `litecap-linux-x86_64` from Releases (see [Linux: install & run](#linux-install--run) below), or build from source.
+I publish prebuilt binaries for Windows and Linux on the [Releases](https://github.com/Foelance/LiteCap/releases) page for every tagged version (`vX.Y.Z`), built by CI from `.github/workflows/release.yml`. `litecap.exe` is Windows-only — it will **not** run on Linux, not even under Wine, since screen capture uses the Windows Graphics Capture API. Linux users should download `litecap-linux-x86_64` from Releases (see [Linux: install & run](#linux-install--run) below), or build from source.
 
 ## Features
 
@@ -61,7 +61,7 @@ Windows builds only need the stable Rust toolchain — platform capture/audio ba
    - **X11 sessions** — capture goes through ffmpeg's `x11grab` directly, no portal dialog. Monitor detection uses `xrandr`, so make sure it's installed (`sudo apt-get install x11-xserver-utils`) for correct per-monitor recording.
 6. **Recording:** click the tray icon (or press the configured global hotkey) to start/stop. Pick a monitor from the tray's Monitor submenu, toggle system audio/microphone and the 1920x1080@60 preset from Options. Finished recordings land in your Videos folder by default (configurable — see [Configuration](#configuration)).
 
-If the tray icon never appears, run it from a terminal to see error output: `./litecap-linux-x86_64` (no `windows_subsystem` hiding on Linux, so logs print to stdout/stderr).
+I haven't been able to test the Linux build myself yet (no Linux machine on hand) — the build compiles cleanly and the logic follows the standard XDG portal / x11grab approach, but if the tray icon never appears or something misbehaves, run it from a terminal to see error output: `./litecap-linux-x86_64` (no `windows_subsystem` hiding on Linux, so logs print to stdout/stderr). Please let me know via an issue if you hit anything.
 
 ## Configuration
 
