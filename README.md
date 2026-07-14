@@ -4,7 +4,7 @@ Low-RAM, cross-platform (Windows & Linux) screen recorder that lives in your sys
 
 ## Download
 
-Prebuilt binaries for Windows and Linux are published on the [Releases](https://github.com/Foelance/LiteCap/releases) page for every tagged version (`vX.Y.Z`). `litecap.exe` is Windows-only — it will not run on Linux (not even under Wine, since screen capture uses the Windows Graphics Capture API). Linux users should download `litecap-linux-x86_64` from Releases, or build from source (see below).
+Prebuilt binaries for Windows and Linux are published on the [Releases](https://github.com/Foelance/LiteCap/releases) page for every tagged version (`vX.Y.Z`), built and signed off by CI from `.github/workflows/release.yml`. `litecap.exe` is Windows-only — it will **not** run on Linux, not even under Wine, since screen capture uses the Windows Graphics Capture API. Linux users should download `litecap-linux-x86_64` from Releases (see [Linux: install & run](#linux-install--run) below), or build from source.
 
 ## Features
 
@@ -37,6 +37,28 @@ sudo apt-get install -y \
 ```
 
 Windows builds only need the stable Rust toolchain — platform capture/audio backends (`windows-capture`, `cpal`) are pulled in automatically.
+
+## Linux: install & run
+
+1. **Download** the latest `litecap-linux-x86_64` from the [Releases](https://github.com/Foelance/LiteCap/releases) page.
+2. **Make it executable and run it:**
+   ```sh
+   chmod +x litecap-linux-x86_64
+   ./litecap-linux-x86_64
+   ```
+   No installer — it's a single self-contained binary. Move it anywhere on your `$PATH` (e.g. `~/.local/bin/`) if you want to launch it by name.
+3. **Runtime libraries** (usually already present on a desktop install; install if the binary refuses to start):
+   ```sh
+   sudo apt-get install -y libgtk-3-0 libayatana-appindicator3-1 libpipewire-0.3-0 libxdo3
+   ```
+   (Package names above are for Debian/Ubuntu; use your distro's equivalents, e.g. `gtk3`, `libappindicator-gtk3`, `pipewire`, `xdotool`-provided `libxdo` on Fedora/Arch.)
+4. **First launch:** LiteCap appears as a tray icon (needs an AppIndicator-capable tray — on stock GNOME install the [AppIndicator/KStatusNotifierItem](https://extensions.gnome.org/extension/615/appindicator-support/) extension; KDE Plasma, XFCE, and most other DEs support it out of the box). It also downloads and caches a portable `ffmpeg` build on first run — no manual `ffmpeg` install needed.
+5. **Screen capture permission:**
+   - **Wayland sessions** — LiteCap requests capture through the `org.freedesktop.portal.ScreenCast` XDG portal via PipeWire. Your compositor needs a portal backend installed: `xdg-desktop-portal-gnome` (GNOME), `xdg-desktop-portal-kde` (KDE Plasma), or `xdg-desktop-portal-wlr` (Sway/Hyprland/other wlroots compositors). A system dialog will ask you to pick a monitor/window the first time you start recording; grant it.
+   - **X11 sessions** — capture goes through ffmpeg's `x11grab` directly, no portal dialog. Monitor detection uses `xrandr`, so make sure it's installed (`sudo apt-get install x11-xserver-utils`) for correct per-monitor recording.
+6. **Recording:** click the tray icon (or press the configured global hotkey) to start/stop. Pick a monitor from the tray's Monitor submenu, toggle system audio/microphone and the 1920x1080@60 preset from Options. Finished recordings land in your Videos folder by default (configurable — see [Configuration](#configuration)).
+
+If the tray icon never appears, run it from a terminal to see error output: `./litecap-linux-x86_64` (no `windows_subsystem` hiding on Linux, so logs print to stdout/stderr).
 
 ## Configuration
 
