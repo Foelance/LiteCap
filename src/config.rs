@@ -14,6 +14,18 @@ pub struct Config {
     pub hotkey: String,
     pub quality: u8,
     pub max_height: Option<u32>,
+    /// Forces exact 1920x1080 output at 60 fps regardless of the source
+    /// monitor's native resolution/refresh (letterboxed if aspect differs).
+    /// Overrides `fps` and `max_height` while enabled.
+    pub preset_1080p60: bool,
+}
+
+impl Config {
+    /// The fps actually used for capture/encode: forced to 60 when the
+    /// 1920x1080@60 preset is enabled, otherwise the configured `fps`.
+    pub fn effective_fps(&self) -> u32 {
+        if self.preset_1080p60 { 60 } else { self.fps }
+    }
 }
 
 impl Default for Config {
@@ -27,6 +39,7 @@ impl Default for Config {
             hotkey: "ctrl+alt+r".to_string(),
             quality: 23,
             max_height: None,
+            preset_1080p60: false,
         }
     }
 }

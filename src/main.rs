@@ -42,6 +42,7 @@ struct MenuItems {
     monitor_items: Vec<CheckMenuItem>,
     system_audio: CheckMenuItem,
     microphone: CheckMenuItem,
+    preset_1080p60: CheckMenuItem,
     open_folder: MenuItem,
     quit: MenuItem,
 }
@@ -101,6 +102,10 @@ fn build_menu(cfg: &Config) -> (Menu, MenuItems) {
     menu.append(&microphone).ok();
     menu.append(&PredefinedMenuItem::separator()).ok();
 
+    let preset_1080p60 = CheckMenuItem::new("1920x1080 @ 60 FPS", true, cfg.preset_1080p60, None);
+    menu.append(&preset_1080p60).ok();
+    menu.append(&PredefinedMenuItem::separator()).ok();
+
     let open_folder = MenuItem::new("Open recordings folder", true, None);
     menu.append(&open_folder).ok();
     menu.append(&PredefinedMenuItem::separator()).ok();
@@ -115,6 +120,7 @@ fn build_menu(cfg: &Config) -> (Menu, MenuItems) {
             monitor_items,
             system_audio,
             microphone,
+            preset_1080p60,
             open_folder,
             quit,
         },
@@ -186,6 +192,9 @@ impl App {
             let _ = self.cfg.save();
         } else if id == self.items.microphone.id() {
             self.cfg.microphone = self.items.microphone.is_checked();
+            let _ = self.cfg.save();
+        } else if id == self.items.preset_1080p60.id() {
+            self.cfg.preset_1080p60 = self.items.preset_1080p60.is_checked();
             let _ = self.cfg.save();
         } else if id == self.items.quit.id() {
             self.stop_if_recording();

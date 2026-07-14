@@ -52,7 +52,17 @@ fn output_path(cfg: &Config) -> Result<PathBuf> {
 /// pixel-format conversion) as a single `-vf`/`-filter:v` value, or `None`
 /// if no filter is needed.
 fn video_filter(cfg: &Config, enc: VideoEncoder) -> Option<String> {
-    let scale = cfg.max_height.map(|h| format!("scale=-2:{h}"));
+    let scale = if cfg.preset_1080p60 {
+        // Fit within 1920x1080 preserving aspect, then pad to exact size
+        // so the output is always precisely 1920x1080 regardless of the
+        // source monitor's native resolution/aspect.
+        Some(
+            "scale=1920:1080:force_original_aspect_ratio=decrease,pad=1920:1080:(ow-iw)/2:(oh-ih)/2"
+                .to_string(),
+        )
+    } else {
+        cfg.max_height.map(|h| format!("scale=-2:{h}"))
+    };
     match enc {
         VideoEncoder::Vaapi => {
             let mut parts = Vec::new();
@@ -136,7 +146,7 @@ pub fn start(cfg: &Config, ffmpeg: &Path, enc: VideoEncoder) -> Result<Recording
         let slot = slot.clone();
         let stop = stop.clone();
         let stats = stats.clone();
-        let fps = cfg.fps;
+        let fps = cfg.effective_fps();
         std::thread::Builder::new()
             .name("litecap-pacer".into())
             .spawn(move || crate::capture::run_pacer(slot, fps, stdin, stop, stats))
@@ -218,7 +228,7 @@ fn build_ffmpeg_args_windows(
         "-video_size".into(),
         format!("{width}x{height}"),
         "-framerate".into(),
-        cfg.fps.to_string(),
+        cfg.effective_fps().to_string(),
         "-i".into(),
         "pipe:0".into(),
     ];
@@ -299,7 +309,7 @@ fn build_ffmpeg_args_windows(
 
     args.extend([
         "-g".into(),
-        (2 * cfg.fps).to_string(),
+        (2 * cfg.effective_fps()).to_string(),
         "-bf".into(),
         "0".into(),
         "-movflags".into(),
@@ -409,7 +419,7 @@ fn start_x11(cfg: &Config, ffmpeg: &Path, enc: VideoEncoder, out_path: PathBuf, 
 
     let mut args: Vec<String> = vec!["-hide_banner".into(), "-v".into(), "warning".into()];
     let display = std::env::var("DISPLAY").unwrap_or_else(|_| ":0.0".into());
-    args.extend(["-f".into(), "x11grab".into(), "-framerate".into(), cfg.fps.to_string()]);
+    args.extend(["-f".into(), "x11grab".into(), "-framerate".into(), cfg.effective_fps().to_string()]);
     if let Some(m) = mon {
         args.extend([
             "-video_size".into(),
@@ -438,7 +448,7 @@ fn start_x11(cfg: &Config, ffmpeg: &Path, enc: VideoEncoder, out_path: PathBuf, 
     }
     args.extend([
         "-g".into(),
-        (2 * cfg.fps).to_string(),
+        (2 * cfg.effective_fps()).to_string(),
         "-bf".into(),
         "0".into(),
         "-movflags".into(),
@@ -480,7 +490,7 @@ fn start_wayland(cfg: &Config, ffmpeg: &Path, enc: VideoEncoder, out_path: PathB
         "-video_size".into(),
         format!("{width}x{height}"),
         "-framerate".into(),
-        cfg.fps.to_string(),
+        cfg.effective_fps().to_string(),
         "-i".into(),
         "pipe:0".into(),
     ];
@@ -502,7 +512,7 @@ fn start_wayland(cfg: &Config, ffmpeg: &Path, enc: VideoEncoder, out_path: PathB
     }
     args.extend([
         "-g".into(),
-        (2 * cfg.fps).to_string(),
+        (2 * cfg.effective_fps()).to_string(),
         "-bf".into(),
         "0".into(),
         "-movflags".into(),
@@ -520,7 +530,7 @@ fn start_wayland(cfg: &Config, ffmpeg: &Path, enc: VideoEncoder, out_path: PathB
         let slot = slot.clone();
         let stop = stop.clone();
         let stats = stats.clone();
-        let fps = cfg.fps;
+        let fps = cfg.effective_fps();
         std::thread::Builder::new()
             .name("litecap-pacer".into())
             .spawn(move || crate::capture::run_pacer(slot, fps, stdin, stop, stats))
