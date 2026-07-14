@@ -31,9 +31,10 @@ windows-capture = "2.0.0"
 zip = "8.6.0"
 
 [target.'cfg(target_os = "linux")'.dependencies]
-ashpd = "0.13.12"
+ashpd = { version = "0.13.12", features = ["screencast"] }
 gtk = "0.18.2"
 pipewire = "0.10.0"
 tar = "0.4.46"
 thiserror = "2.0.18"
 xz2 = "0.1.7"
+tokio = { version = "1", features = ["rt", "net", "time", "io-util"] }

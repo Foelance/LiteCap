@@ -103,11 +103,16 @@ async fn negotiate_portal() -> Result<(u32, std::os::fd::OwnedFd), WaylandCaptur
     let response = proxy
         .start(&session, None, Default::default())
         .await
-        .map_err(|e| match e {
-            ashpd::Error::Response(ashpd::desktop::request::ResponseError::Cancelled) => {
+        .map_err(|e| {
+            // `ashpd::desktop::request::ResponseError` is a private type (the
+            // `request` module is `pub(crate)`), so it can't be named/matched
+            // here. Distinguish "user cancelled" via ashpd's stable Display
+            // text for `Error::Response(ResponseError::Cancelled)` instead.
+            if matches!(e, ashpd::Error::Response(_)) && e.to_string() == "Portal request was cancelled" {
                 WaylandCaptureError::Cancelled
+            } else {
+                WaylandCaptureError::Other(anyhow::anyhow!("starting screencast: {e}"))
             }
-            other => WaylandCaptureError::Other(anyhow::anyhow!("starting screencast: {other}")),
         })?
         .response()
         .context("reading screencast response")?;

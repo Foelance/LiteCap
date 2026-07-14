@@ -382,14 +382,14 @@ fn run_event_loop(
 
     {
         let app = app.clone();
-        glib::timeout_add_local(std::time::Duration::from_millis(200), move || {
+        gtk::glib::timeout_add_local(std::time::Duration::from_millis(200), move || {
             let mut app = app.borrow_mut();
             poll_ffmpeg_ready(&mut app, &ready, &ready_result);
             poll_channels(&mut app);
             if app.quit_requested {
                 gtk::main_quit();
             }
-            glib::ControlFlow::Continue
+            gtk::glib::ControlFlow::Continue
         });
     }
 
