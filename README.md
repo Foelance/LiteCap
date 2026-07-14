@@ -2,6 +2,9 @@
 
 Low-RAM, cross-platform (Windows & Linux) screen recorder that lives in your system tray.
 
+> ## ⚠️ IMPORTANT NOTE!
+> This entire project — code, CI/release pipeline, and yes, this README included 😃 — was built entirely with AI assistance. It works, but it hasn't had the kind of scrutiny a hand-crafted project would get, so bugs, rough edges, or plain wrong assumptions are expected. If something breaks or looks off, please open an issue or a PR — all suggestions and contributions are very welcome.
+
 ## Download
 
 Prebuilt binaries for Windows and Linux are published on the [Releases](https://github.com/Foelance/LiteCap/releases) page for every tagged version (`vX.Y.Z`), built and signed off by CI from `.github/workflows/release.yml`. `litecap.exe` is Windows-only — it will **not** run on Linux, not even under Wine, since screen capture uses the Windows Graphics Capture API. Linux users should download `litecap-linux-x86_64` from Releases (see [Linux: install & run](#linux-install--run) below), or build from source.
