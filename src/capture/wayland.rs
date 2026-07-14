@@ -93,7 +93,7 @@ async fn negotiate_portal() -> Result<(u32, std::os::fd::OwnedFd), WaylandCaptur
             &session,
             SelectSourcesOptions::default()
                 .set_cursor_mode(CursorMode::Embedded)
-                .set_sources(SourceType::Monitor)
+                .set_sources(ashpd::enumflags2::BitFlags::from(SourceType::Monitor))
                 .set_multiple(false)
                 .set_persist_mode(PersistMode::Application),
         )
